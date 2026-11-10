@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-toolkit-local
+      name: '@forst/dsh-toolkit-local'

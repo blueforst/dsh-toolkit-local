@@ -1,0 +1,52 @@
+name: 本机插件检查
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  unit:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+      - run: npm run build
+      - run: npm run check
+      - run: npm test
+      - run: git diff --exit-code -- client.js
+  installed-sdk:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+      - name: 安装固定 DSH 测试运行时
+        run: |
+          npm install --prefix "$RUNNER_TEMP/dsh-sdk" @deepseek-ai/dsh@0.2.2-alpha.2 pnpm@11.25.0 --ignore-scripts --no-audit --no-fund
+          echo "$RUNNER_TEMP/dsh-sdk/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: 真实已安装 Pi 合约与插件注册
+        env:
+          DSH_ENTRYPOINT: ${{ runner.temp }}/dsh-sdk/node_modules/@deepseek-ai/dsh/lib/bin.js
+        run: node --test tests/*.integration.mjs
+      - name: DSH 原生安装、鉴权与卸载冒烟检查
+        env:
+          DSH_CLI_PATH: ${{ runner.temp }}/dsh-sdk/node_modules/@deepseek-ai/dsh/lib/bin.js
+          DSH_ACCEPTANCE_OUTPUT: ${{ runner.temp }}/dsh-native-install
+        run: node tests/native-acceptance.mjs --install-only
+      - name: 打包本机插件
+        run: |
+          mkdir -p dist
+          npm pack --pack-destination dist
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dsh-toolkit-local-0.1.0
+          path: dist/*.tgz
+          if-no-files-found: error

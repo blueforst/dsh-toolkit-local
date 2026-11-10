@@ -1,0 +1,8 @@
+{
+  "name": "@forst/dsh-opencode-go-quota",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "本机与服务器共用的 OpenCode Go 月额度模块。",
+  "license": "MIT"
+}

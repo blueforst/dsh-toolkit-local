@@ -1,0 +1,19 @@
+{
+  "fixture": "pristine DSH web, no toolkit installed, no config overlay, no external model call",
+  "httpStatus": 200,
+  "response": {
+    "type": "server-response",
+    "rpcId": "isolated-native-baseline",
+    "result": {
+      "ok": false,
+      "error": {
+        "code": "agent-preset/invalid",
+        "message": "Cannot read properties of undefined (reading 'parent')",
+        "details": {
+          "agentPreset": "standard",
+          "reason": "Cannot read properties of undefined (reading 'parent')"
+        }
+      }
+    }
+  }
+}

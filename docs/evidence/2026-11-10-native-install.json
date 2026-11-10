@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "package": "@forst/dsh-toolkit-local",
+  "scope": "install-smoke",
+  "ui": "not-run-install-only",
+  "checks": {
+    "nativeInstall": true,
+    "onlyLocalBundleAdded": true,
+    "nativeBrowserCuaOverridesUnchanged": true,
+    "unauthenticated401": true,
+    "untrustedOrigin403": true,
+    "quotaMissingKey503": true,
+    "nativeUninstall": true,
+    "nativeBrowserCuaOverridesUnchangedAfterUninstall": true
+  },
+  "runtime": {
+    "dsh": "0.2.2-alpha.2",
+    "node": "v24.22.1"
+  },
+  "fixtureModelCalls": 0
+}
