@@ -1,5 +1,10 @@
 # 版本记录
 
+## 0.1.2 · 2026-11-11
+
+- 在 DSH 原有的「网页搜索」页切换 DeepSeek Messages、DeepSeek Search API 和 Tavily。
+- 网页搜索、额度和费用分别注册为 DSH 组件。缩短包内 README，将安装和开发说明放到仓库文档。
+
 ## 0.1.1 · 2026-11-11
 
 - 额度监控通过 DSH 凭据服务读取 OpenCode Go API Key，修复桌面版已保存密钥仍显示「等待更新」的问题。

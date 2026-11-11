@@ -5,7 +5,8 @@ import { runInNewContext } from 'node:vm';
 
 // Minimal hook/slot fixture: validates our client contract, not a real React/DSH UI.
 function clientHarness({ states: initialStates = [], visibility = 'visible', quotaResponse } = {}) {
-  let definition, stateIndex = 0, nextTimer = 0;
+  let stateIndex = 0, nextTimer = 0;
+  const definitions = [];
   const styles = [], slots = new Map(), effects = [], cleanups = [], hookCleanups = [];
   const states = [...initialStates], intervals = new Map(), timeouts = new Map(), listeners = new Map(), requests = [];
   const document = {
@@ -29,13 +30,13 @@ function clientHarness({ states: initialStates = [], visibility = 'visible', quo
     useEffect: callback => effects.push(callback),
   };
   const window = {
-    __ModuleLoader__: { load: value => { assert.equal(definition, undefined, 'one module registration'); definition = value; } },
+    __ModuleLoader__: { load: value => definitions.push(value) },
     setInterval(callback, ms) { const id = ++nextTimer; intervals.set(id, { callback, ms }); return id; },
     clearInterval: id => intervals.delete(id),
     setTimeout(callback, ms) { const id = ++nextTimer; timeouts.set(id, { callback, ms }); return id; },
     clearTimeout: id => timeouts.delete(id),
   };
-  runInNewContext(readFileSync(new URL('../client.js', import.meta.url), 'utf8'), {
+  const globals = {
     window, document, AbortController,
     Node: class FixtureNode {},
     fetch: async (url, options) => {
@@ -43,25 +44,37 @@ function clientHarness({ states: initialStates = [], visibility = 'visible', quo
       if (quotaResponse) return quotaResponse();
       return { ok: true, json: async () => ({ scope: 'opencode-go-monthly', timestamp: Date.now(), monthly: { percent: 8 } }) };
     },
-  });
-  assert.equal(definition.id, '@forst/dsh-toolkit-local');
-  const plugin = definition.factory(name => {
+  };
+  for (const name of ['opencode-go-quota', 'session-billing', 'web-search-tavily']) {
+    const source = new URL(`../plugins/${name}/client.js`, import.meta.url);
+    runInNewContext(readFileSync(source, 'utf8'), globals);
+  }
+  const require = name => {
     if (name === 'react') return React;
     if (name === 'react-dom') return { createPortal: child => ({ type: 'portal', children: [child] }) };
     if (name === '@deepseek-ai/dsh-client-ui-primitives') return {
       Tooltip: 'native-tooltip-fixture',
+      SettingsSecretField: 'native-secret-field-fixture',
       useAnchoredPosition: () => ({ left: 12, top: 12 }),
       useDismissOnOutsidePointer() {},
     };
     throw new Error(`Unexpected client dependency: ${name}`);
-  });
-  plugin.apply({
+  };
+  const ctx = {
     effect: callback => cleanups.push(callback()),
+    configForms: { whileServed: (_names, callback) => callback() },
     slots: {
-      inject: (_name, callback) => cleanups.push(callback()),
-      register: (spec, component) => { assert(!slots.has(spec.id)); slots.set(spec.id, { spec, component }); return () => slots.delete(spec.id); },
+      inject: (_name, callback) => callback(),
+      register(spec, component) {
+        assert(!slots.has(spec.id));
+        slots.set(spec.id, { spec, component });
+        const dispose = () => slots.delete(spec.id);
+        cleanups.push(dispose);
+        return dispose;
+      },
     },
-  });
+  };
+  for (const definition of definitions) definition.factory(require).apply(ctx);
   return {
     slots, styles, states, requests, document, intervals, timeouts, listeners,
     render(id, props) { stateIndex = 0; return slots.get(id).component(props); },
@@ -77,17 +90,18 @@ function nodes(tree) {
   return [tree, ...(tree.children ?? []).flatMap(nodes)];
 }
 
-test('client registers exactly quota and cost, and unload releases styles and owned slots', () => {
+test('client registers quota, cost and the unified Web Search page and disposes its slots', () => {
   const h = clientHarness();
-  assert.deepEqual([...h.slots.keys()], ['opencode-go-quota', 'session-cost']);
+  assert.deepEqual([...h.slots.keys()], ['opencode-go-quota', 'session-cost', 'forst-web-search-settings']);
+  assert.equal(h.slots.get('forst-web-search-settings').spec.name, 'plugins.detail.section');
   assert.equal(h.slots.get('opencode-go-quota').spec.order, 51);
   assert.equal(h.slots.get('session-cost').spec.order, -1);
-  assert.equal(h.styles.length, 1);
+  assert.equal(h.styles.length, 2);
   assert.equal(h.styles[0].dataset.pluginCss, '@forst/dsh-session-billing');
   assert.equal(h.requests.length, 0, 'registration cannot start background polling');
   h.dispose();
   assert.equal(h.slots.size, 0);
-  assert(h.styles[0].removed);
+  assert(h.styles.every(style => style.removed));
 });
 
 test('collapsed sidebar does not poll quota or allocate a timer', async () => {

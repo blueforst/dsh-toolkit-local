@@ -43,11 +43,11 @@ test('installed Pi contract: pricing, retries, deduplication, compaction, unknow
   close(withWrite.totals.usd, withWrite.totals.inputUsd + withWrite.totals.outputUsd + withWrite.totals.cacheReadUsd + withWrite.totals.cacheWriteUsd);
 });
 
-test('installed DSH/Pi contract: local backend registers only quota HTTP and the native cost projection', async () => {
+test('installed DSH/Pi contract: local backend registers quota, costs and Tavily', async () => {
   const { apply, inject, name } = await import('../index.js');
   assert.equal(name, 'dsh-toolkit-local');
-  assert.deepEqual(inject, ['webServer', 'sessionProjections', 'connection']);
-  const routes = new Map(), projections = [], cleanups = [];
+  assert.deepEqual(inject, ['webServer', 'sessionProjections', 'connection', 'web']);
+  const routes = new Map(), projections = [], cleanups = [], providers = [];
   const previous = process.argv[1];
   process.argv[1] = entrypoint;
   try {
@@ -56,10 +56,12 @@ test('installed DSH/Pi contract: local backend registers only quota HTTP and the
       connection: { requestRejection: () => undefined },
       webServer: { register: route => { routes.set(route.path, route); return () => routes.delete(route.path); } },
       sessionProjections: { register: projection => { projections.push(projection); } },
+      web: { registerSearchProvider: provider => { providers.push(provider); } },
     });
     assert.deepEqual([...routes.keys()], ['/opencode-go-quota']);
     assert.equal(projections.length, 1);
     assert.equal(projections[0].key, 'forstSessionCost');
+    assert.deepEqual(providers.map(provider => provider.id), ['forst-tavily']);
     projections[0].stateSchema.parse(projections[0].init());
   } finally {
     process.argv[1] = previous;

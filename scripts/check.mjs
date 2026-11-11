@@ -18,6 +18,4 @@ function walk(directory) {
   }
 }
 walk(root);
-const build = spawnSync(process.execPath, [join(root, 'scripts/build-client.mjs'), '--check'], { encoding: 'utf8' });
-if (build.status !== 0) throw new Error(build.stderr || build.error?.message || '客户端构建校验失败。');
-console.log(`语法、JSON 与构建一致性检查通过：${checked} 个 JavaScript 文件。`);
+console.log(`语法与 JSON 检查通过：${checked} 个 JavaScript 文件。`);

@@ -29,15 +29,17 @@ function tarEntries(bytes) {
 test('local plugin declares only its own bundle and native DSH UI dependencies', () => {
   assert.equal(manifest.name, '@forst/dsh-toolkit-local');
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml');
-  assert.equal(manifest.dsh.client.platform, 'web');
   assert.deepEqual(Object.keys(manifest.dependencies ?? {}), [], 'reuse installed DSH/Pi, do not install a second SDK');
-  const inject = manifest.dsh.client.inject;
-  assert(inject.every(name => name.startsWith('@deepseek-ai/dsh-client-')));
-  assert(inject.every(name => !/browser|cua|computer-use|desktop/i.test(name)));
   const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8');
-  assert.match(patch, /name:\s*['"]@forst\/dsh-toolkit-local['"]/);
-  assert.equal((patch.match(/\bname:/g) ?? []).length, 1);
+  assert.equal((patch.match(/\bname:/g) ?? []).length, 3);
   assert.doesNotMatch(patch, /disabled:|browser|computer-use|cua-driver|noVNC|\/opt\//i);
+  for (const name of ['opencode-go-quota', 'session-billing', 'web-search-tavily']) {
+    assert(patch.includes(`name: ./plugins/${name}/index.js`));
+    const component = JSON.parse(readFileSync(new URL(`../plugins/${name}/package.json`, import.meta.url)));
+    assert.equal(component.dsh.client.platform, 'web');
+    assert.equal(component.exports['./client'], './client.js');
+    assert(component.dsh.client.inject.every(name => !/browser|cua|computer-use|desktop/i.test(name)));
+  }
 });
 
 test('packed release is self-contained and excludes Linux infrastructure, browser/CUA, and fixtures', () => {
@@ -51,9 +53,10 @@ test('packed release is self-contained and excludes Linux infrastructure, browse
     const [packed] = JSON.parse(result.stdout);
     assert.equal(packed.name, manifest.name);
     const entries = tarEntries(readFileSync(join(temp, packed.filename)));
-    for (const name of ['index.js', 'client.js', 'cordis.patch.yml', 'package.json',
-      'plugins/opencode-go-quota/index.js', 'plugins/opencode-go-quota/client.js',
-      'plugins/session-billing/index.js', 'plugins/session-billing/runtime.js', 'plugins/session-billing/projection.js', 'plugins/session-billing/client.js']) {
+    for (const name of ['index.js', 'cordis.patch.yml', 'package.json',
+      'plugins/opencode-go-quota/index.js', 'plugins/opencode-go-quota/client.js', 'plugins/opencode-go-quota/package.json',
+      'plugins/session-billing/index.js', 'plugins/session-billing/runtime.js', 'plugins/session-billing/projection.js', 'plugins/session-billing/client.js', 'plugins/session-billing/package.json',
+      'plugins/web-search-tavily/index.js', 'plugins/web-search-tavily/client.js', 'plugins/web-search-tavily/package.json']) {
       assert(entries.has(`package/${name}`), `missing runtime file: ${name}`);
     }
     for (const [name, content] of entries) {
