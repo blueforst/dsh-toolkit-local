@@ -8,7 +8,7 @@ function response() {
 
 const validMonthly = { percent: 8, status: 'ok', resetsAt: '2026-12-01T00:00:00.000Z' };
 
-function harness(t, { key = 'test-credential', monthly = validMonthly, network } = {}) {
+function harness(t, { key = 'test-credential', credentials, monthly = validMonthly, network } = {}) {
   const oldKey = process.env.OPENCODE_GO_API_KEY;
   if (key === null) delete process.env.OPENCODE_GO_API_KEY;
   else process.env.OPENCODE_GO_API_KEY = key;
@@ -24,6 +24,7 @@ function harness(t, { key = 'test-credential', monthly = validMonthly, network }
     return network ? network(url, options) : { ok: true, json: async () => ({ usage: { monthly } }) };
   });
   apply({
+    get: name => name === 'credentials' ? credentials : undefined,
     effect: callback => cleanups.push(callback()),
     connection: { requestRejection: request => request.rejection },
     webServer: { register: route => { routes.set(route.path, route); return () => routes.delete(route.path); } },
@@ -100,11 +101,29 @@ test('unsupported methods do not request quota', async t => {
 
 test('missing credential fails closed without provider traffic', async t => {
   const h = harness(t, { key: null });
-  assert.equal((await h.request()).status, 503);
+  const res = await h.request();
+  assert.equal(res.status, 503);
+  assert.equal(JSON.parse(res.body).code, 'missing-credential');
   const head = await h.request('HEAD');
   assert.equal(head.status, 503);
   assert.equal(head.body, undefined);
   assert.equal(h.calls.length, 0);
+});
+
+test('quota uses the DSH credential service and recovers when a key is saved', async t => {
+  let key;
+  const credentials = { async resolve(ref) {
+    assert.equal(ref, 'OPENCODE_GO_API_KEY');
+    return key ? { value: key, source: 'file' } : undefined;
+  } };
+  const h = harness(t, { credentials });
+  const missing = await h.request();
+  assert.equal(missing.status, 503);
+  assert.equal(JSON.parse(missing.body).code, 'missing-credential');
+  assert.equal(h.calls.length, 0, 'the credential service owns resolution when available');
+  key = 'desktop-stored-key';
+  assert.equal((await h.request()).status, 200);
+  assert.equal(h.calls[0].options.headers.Authorization, 'Bearer desktop-stored-key');
 });
 
 test('provider failure is sanitized and retry is delayed by ten seconds', async t => {

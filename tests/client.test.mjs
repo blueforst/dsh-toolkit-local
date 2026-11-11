@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 // Minimal hook/slot fixture: validates our client contract, not a real React/DSH UI.
-function clientHarness({ states: initialStates = [], visibility = 'visible' } = {}) {
+function clientHarness({ states: initialStates = [], visibility = 'visible', quotaResponse } = {}) {
   let definition, stateIndex = 0, nextTimer = 0;
   const styles = [], slots = new Map(), effects = [], cleanups = [], hookCleanups = [];
   const states = [...initialStates], intervals = new Map(), timeouts = new Map(), listeners = new Map(), requests = [];
@@ -40,6 +40,7 @@ function clientHarness({ states: initialStates = [], visibility = 'visible' } = 
     Node: class FixtureNode {},
     fetch: async (url, options) => {
       requests.push({ url, options });
+      if (quotaResponse) return quotaResponse();
       return { ok: true, json: async () => ({ scope: 'opencode-go-monthly', timestamp: Date.now(), monthly: { percent: 8 } }) };
     },
   });
@@ -65,7 +66,7 @@ function clientHarness({ states: initialStates = [], visibility = 'visible' } = 
     slots, styles, states, requests, document, intervals, timeouts, listeners,
     render(id, props) { stateIndex = 0; return slots.get(id).component(props); },
     runEffects() { effects.splice(0).forEach(callback => hookCleanups.push(callback())); },
-    async settle() { for (let i = 0; i < 4; i++) await Promise.resolve(); },
+    settle() { return new Promise(resolve => setImmediate(resolve)); },
     dispose() { hookCleanups.splice(0).reverse().forEach(callback => callback?.()); cleanups.splice(0).reverse().forEach(callback => callback?.()); },
   };
 }
@@ -123,6 +124,23 @@ test('quota polling pauses when hidden, resumes immediately, and cleans up on un
   assert(h.requests[0].options.signal.aborted);
   await timer.callback();
   assert.equal(h.requests.length, 1, 'disposed refresh cannot issue another request');
+});
+
+test('quota explains a missing key and shows usage after the next successful refresh', async () => {
+  let configured = false;
+  const h = clientHarness({ quotaResponse: () => configured
+    ? { ok: true, json: async () => ({ scope: 'opencode-go-monthly', timestamp: Date.now(), monthly: { percent: 8 } }) }
+    : { ok: false, status: 503, json: async () => ({ code: 'missing-credential' }) } });
+  h.render('opencode-go-quota', { wide: true });
+  h.runEffects();
+  await h.settle();
+  assert.equal(h.render('opencode-go-quota', { wide: true }).props.detail, '未配置 OpenCode Go API Key');
+  configured = true;
+  await [...h.intervals.values()][0].callback();
+  const updated = h.render('opencode-go-quota', { wide: true });
+  assert.equal(updated.props.detail, '本月已使用');
+  assert.equal(updated.children[0].props.value, 8);
+  h.dispose();
 });
 
 const cost = { usd: .0003, inputUsd: .00015, outputUsd: .00012, cacheReadUsd: .00003, cacheWriteUsd: 0, pricedCalls: 1, unpricedCalls: 0 };

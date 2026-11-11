@@ -9,21 +9,27 @@
 | OpenCode Go 月额度 | 侧边栏；显示官方返回的本月已使用整数百分比，60 秒刷新与共享缓存 |
 | Pi 会话费用 | 输入框统计行最前；点击查看输入、输出、缓存读与实际产生的缓存写费用 |
 
-浏览器页面不可见、侧栏折叠时暂停额度轮询。没有 Go 密钥或接口不可用时，额度显示不可用，不影响会话费用。费用复用当前 DSH 安装的 Pi 模型目录，不安装第二份 SDK，也不是供应商实际账单。
+浏览器页面不可见、侧栏折叠时暂停额度轮询。侧栏会分别提示缺少 Go API Key 和暂时无法读取额度。会话费用复用当前 DSH 安装的 Pi 模型目录，不安装第二份 SDK，也不是供应商实际账单。
 
 ## 直接安装
 
-前提：已经可以正常启动 DSH 的 `web` profile，Node.js 至少 `24.9`。本次兼容验收基线为 DSH `0.2.2-alpha.2`；其他 DSH 版本需重新验证。本插件的界面扩展面向 DSH Web，不是独立桌面应用。
+插件可安装到 DSH 的 `web` 或官方桌面版的 `desktop` profile。Web CLI 需要 Node.js `24.9` 或更高版本，兼容验收基线为 DSH `0.2.2-alpha.2`。macOS 桌面版使用应用自带的 CLI。
 
-从本仓库 [Actions](https://github.com/blueforst/dsh-toolkit-local/actions) 的成功检查运行中下载 `dsh-toolkit-local-0.1.0` 构建产物，解压得到 `forst-dsh-toolkit-local-0.1.0.tgz`。在该文件所在目录运行：
+从本仓库 [Actions](https://github.com/blueforst/dsh-toolkit-local/actions) 的成功检查运行中下载 `dsh-toolkit-local-0.1.1` 构建产物，解压得到 `forst-dsh-toolkit-local-0.1.1.tgz`。在该文件所在目录运行：
 
 ```sh
-dsh plugin --profile web add --ignore-scripts --save-exact ./forst-dsh-toolkit-local-0.1.0.tgz
+dsh plugin --profile web add --ignore-scripts --save-exact ./forst-dsh-toolkit-local-0.1.1.tgz
 ```
 
 然后重启此 profile 的 DSH 进程。此命令也可在 PowerShell 使用；文件不在当前目录时改成实际路径。不要同时在同一个 profile 中安装服务器版 `@forst/dsh-toolkit`，两者会注册相同的额度路由和费用投影。
 
-如需额度显示，把自己的 `OPENCODE_GO_API_KEY` 配置到**启动 DSH 的进程环境**并重启 DSH。无需修改 Cordis 配置；没有此密钥也可使用费用功能。不要把密钥写进仓库。
+macOS 桌面版先完全退出应用，再安装到 `desktop` profile，安装后重新打开应用：
+
+```sh
+"/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh" plugin --profile desktop add --ignore-scripts --save-exact ./forst-dsh-toolkit-local-0.1.1.tgz
+```
+
+额度监控通过 DSH 凭据服务读取 `OPENCODE_GO_API_KEY`，可以复用在 DSH「设置 → 模型 → OpenCode Go」保存的密钥。也支持在启动 DSH 的进程环境中提供同名变量。缺少此密钥时仍可使用会话费用功能。
 
 如果该 profile 原来已安装旧服务器版或旧独立模块，先备份 profile 的 `package.json`、锁文件及 Cordis 配置，再用 DSH 原生插件命令移除实际安装的旧包后安装本机版。不要清空 profile 或删除历史会话。
 
