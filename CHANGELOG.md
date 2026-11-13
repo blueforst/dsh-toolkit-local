@@ -1,5 +1,9 @@
 # 版本记录
 
+## 0.1.3 · 2026-11-14
+
+- 使用 Pi 官方目录补齐 Vertex AI 的 Gemini 4 Carbon 和 Gemini 4 Hydrogen 费率。升级后按会话日志重新计算费用。
+
 ## 0.1.2 · 2026-11-11
 
 - 在 DSH 原有的「网页搜索」页切换 DeepSeek Messages、DeepSeek Search API 和 Tavily。

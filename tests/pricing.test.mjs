@@ -115,6 +115,30 @@ test('fixture unit: cached catalog lookup is scoped to the provider and model', 
   assert.equal(state.totals.pricedCalls, 3);
 });
 
+test('Vertex Gemini 4 uses Pi catalog fallback for missing or zero-rate entries', () => {
+  const carbon = { provider: 'google-vertex', model: 'gemini-4-carbon' };
+  const hydrogen = { provider: 'google-vertex', model: 'gemini-4-hydrogen' };
+  const projection = createProjection(fixtureRuntime({
+    getBuiltinModels: () => [{ id: carbon.model, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
+  }));
+  let state = projection.apply(projection.init(), message(1, usage, carbon));
+  close(state.totals.usd, .005);
+  state = projection.apply(state, message(2, usage, hydrogen));
+  close(state.totals.usd, .00875);
+  assert.equal(state.totals.pricedCalls, 2);
+  assert.equal(state.totals.unpricedCalls, 0);
+  state = projection.apply(state, message(3, usage, { ...hydrogen, provider: 'another-gateway' }));
+  assert.equal(state.totals.unpricedCalls, 1);
+});
+
+test('the installed Pi rate takes priority over the supplemental Vertex catalog', () => {
+  const route = { provider: 'google-vertex', model: 'gemini-4-carbon' };
+  const projection = createProjection(fixtureRuntime({
+    getBuiltinModels: () => [{ ...fixtureModel, id: route.model }],
+  }));
+  close(projection.apply(projection.init(), message(1, usage, route)).totals.usd, .0024);
+});
+
 test('fixture unit: full-history replay agrees with live accumulation, projection key stays stable', () => {
   const projection = createProjection(fixtureRuntime());
   const events = [message(1), message(1), { type: 'llm/retry-started', data: { turn: 1, step: 1 } }, message(1),
@@ -124,7 +148,7 @@ test('fixture unit: full-history replay agrees with live accumulation, projectio
   const split = events.slice(3).reduce((state, event) => projection.apply(state, event), JSON.parse(JSON.stringify(replay(events.slice(0, 3)))));
   assert.deepEqual(split, replay(events));
   assert.equal(projection.key, 'forstSessionCost');
-  assert.equal(projection.stateVersion, 2010400);
+  assert.equal(projection.stateVersion, 3010400);
   assert.deepEqual(projection.wire.view(split), split.totals);
   projection.stateSchema.parse(split);
   assert.equal(projection.apply(split, { type: 'tool/result', data: {} }), split);
