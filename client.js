@@ -134,7 +134,8 @@ window.__ModuleLoader__.load({
       .forst-cost-pill[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
       @media(hover:hover){.forst-cost-pill:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}}
       .forst-cost-panel{z-index:1100;box-sizing:border-box;border-radius:var(--dsw-radius-lg);background:var(--dsw-specific-menu);width:max-content;min-width:min(300px,100vw - 24px);max-width:min(440px,100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto;backdrop-filter:var(--dsw-menu-backdrop-filter);--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-secondary);cursor:default;border:0;padding:16px;font-size:12px;line-height:18px;position:fixed}
-      .forst-cost-panel--anchored{height:fit-content;position-anchor:var(--forst-cost-anchor);top:max(12px,var(--dsh-frame-overlay-top,12px));left:12px;right:anchor(right);bottom:calc(anchor(top) + 8px);align-self:safe end;justify-self:safe end;margin:0}
+      .forst-cost-panel--anchored{height:fit-content;position-anchor:var(--forst-cost-anchor);top:max(12px,var(--dsh-frame-overlay-top,12px));left:max(12px,anchor(left));right:12px;bottom:calc(anchor(top) + 8px);align-self:safe end;justify-self:safe start;position-try-fallbacks:--forst-cost-viewport-end;margin:0}
+      @position-try --forst-cost-viewport-end{left:12px;right:12px;justify-self:safe end}
       .forst-cost-title{color:var(--dsw-alias-label-primary);justify-content:space-between;gap:16px;margin-bottom:8px;font-weight:500;display:flex}
       .forst-cost-title-label{align-items:center;gap:6px;min-width:0;display:inline-flex}
       .forst-cost-title-label svg{flex:none;width:14px;height:14px}

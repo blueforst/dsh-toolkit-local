@@ -1,6 +1,6 @@
 /**
  * Isolated native acceptance. Run from the toolkit package directory.
- * Requires Node 24+, pnpm on PATH, DSH 0.2.2-alpha.2, and (unless --api-only or --install-only)
+ * Requires Node 24+, pnpm on PATH, DSH 0.2.2-alpha.2 or 0.2.2-rc.2, and (unless --api-only or --install-only)
  * Playwright with an installed Chromium. No user profile or model credential is used.
  *
  * Optional environment: DSH_CLI_PATH, DSH_PACKAGE_DIR, DSH_PACKAGE_TGZ,
@@ -116,7 +116,7 @@ async function rpc(method, request) {
 try {
   assert(existsSync(cli), `DSH CLI not found; set DSH_CLI_PATH: ${cli}`);
   const runtimeManifest = JSON.parse(readFileSync(join(dirname(dirname(cli)), 'package.json'), 'utf8'));
-  assert.equal(runtimeManifest.version, '0.2.2-alpha.2', 'Acceptance fixtures target this explicit DSH version');
+  assert(['0.2.2-alpha.2', '0.2.2-rc.2'].includes(runtimeManifest.version), 'Acceptance fixtures target pinned DSH versions');
   result.runtime = { dsh: runtimeManifest.version, node: process.version };
   await run(process.execPath, [cli, 'web', '--dump-config']);
   baselineManifest = readManifest();
