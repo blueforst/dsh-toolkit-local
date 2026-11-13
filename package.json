@@ -1,6 +1,6 @@
 {
   "name": "@forst/dsh-toolkit-local",
-  "version": "0.1.1-server.1",
+  "version": "0.1.1-server.2",
   "description": "DSH 原生增强插件：OpenCode Go 月额度与 Pi 会话费用；浏览器和 Computer Use 沿用 DSH 原生能力。",
   "type": "module",
   "main": "./index.js",

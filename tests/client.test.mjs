@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 // Minimal hook/slot fixture: validates our client contract, not a real React/DSH UI.
-function clientHarness({ states: initialStates = [], visibility = 'visible', quotaResponse } = {}) {
+function clientHarness({ states: initialStates = [], visibility = 'visible', quotaResponse, legacyPosition = true } = {}) {
   let definition, stateIndex = 0, nextTimer = 0;
   const styles = [], slots = new Map(), effects = [], cleanups = [], hookCleanups = [];
   const states = [...initialStates], intervals = new Map(), timeouts = new Map(), listeners = new Map(), requests = [];
@@ -50,7 +50,7 @@ function clientHarness({ states: initialStates = [], visibility = 'visible', quo
     if (name === 'react-dom') return { createPortal: child => ({ type: 'portal', children: [child] }) };
     if (name === '@deepseek-ai/dsh-client-ui-primitives') return {
       Tooltip: 'native-tooltip-fixture',
-      useAnchoredPosition: () => ({ left: 12, top: 12 }),
+      ...(legacyPosition && { useAnchoredPosition: () => ({ left: 12, top: 12 }) }),
       useDismissOnOutsidePointer() {},
     };
     throw new Error(`Unexpected client dependency: ${name}`);
@@ -156,6 +156,17 @@ test('billing details hide zero cache-write, show positive cache-write, and mark
     assert(rendered.find(node => node.type === 'button').props['aria-label'].includes('*'));
     h.dispose();
   }
+});
+
+test('billing uses the same CSS anchor for the trigger and dialog when DSH removes the positioning hook', () => {
+  const h = clientHarness({ states: [true], legacyPosition: false });
+  const tree = h.render('session-cost', { useProjection: () => cost });
+  const dialog = nodes(tree).find(node => node.props?.role === 'dialog');
+  assert.match(tree.props.style.anchorName, /^--forst-cost-/);
+  assert.equal(dialog.props.style['--forst-cost-anchor'], tree.props.style.anchorName);
+  assert.equal(dialog.props.style.visibility, undefined);
+  assert.match(dialog.props.className, /forst-cost-panel--anchored/);
+  h.dispose();
 });
 
 test('billing dialog closes with Escape and removes its listeners', () => {

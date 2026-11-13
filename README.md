@@ -13,7 +13,7 @@
 
 ## 直接安装
 
-插件可安装到 DSH 的 `web` 或官方桌面版的 `desktop` profile。Web CLI 需要 Node.js `24.9` 或更高版本，兼容验收基线为 DSH `0.2.2-alpha.2`。macOS 桌面版使用应用自带的 CLI。
+插件可安装到 DSH 的 `web` 或官方桌面版的 `desktop` profile。Web CLI 需要 Node.js `24.9` 或更高版本。会话费用界面兼容 DSH `0.2.2-alpha.2` 和 `0.2.2-rc.2` 的定位接口。macOS 桌面版使用应用自带的 CLI。
 
 从本仓库 [Actions](https://github.com/blueforst/dsh-toolkit-local/actions) 的成功检查运行中下载 `dsh-toolkit-local-0.1.1` 构建产物，解压得到 `forst-dsh-toolkit-local-0.1.1.tgz`。在该文件所在目录运行：
 
