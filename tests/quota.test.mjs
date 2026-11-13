@@ -8,13 +8,18 @@ function response() {
 
 const validMonthly = { percent: 8, status: 'ok', resetsAt: '2026-12-01T00:00:00.000Z' };
 
-function harness(t, { key = 'test-credential', credentials, monthly = validMonthly, network } = {}) {
-  const oldKey = process.env.OPENCODE_GO_API_KEY;
-  if (key === null) delete process.env.OPENCODE_GO_API_KEY;
-  else process.env.OPENCODE_GO_API_KEY = key;
+function harness(t, { key = 'test-credential', relay = null, credentials, monthly = validMonthly, network } = {}) {
+  const env = { OPENCODE_GO_API_KEY: key, DSH_OPENCODE_GO_USAGE_URL: relay };
+  const previous = Object.fromEntries(Object.keys(env).map(name => [name, process.env[name]]));
+  for (const [name, value] of Object.entries(env)) {
+    if (value === null) delete process.env[name];
+    else process.env[name] = value;
+  }
   t.after(() => {
-    if (oldKey === undefined) delete process.env.OPENCODE_GO_API_KEY;
-    else process.env.OPENCODE_GO_API_KEY = oldKey;
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   });
   let now = 100000;
   const calls = [], routes = new Map(), cleanups = [];
@@ -68,6 +73,8 @@ test('Go quota shares a 60-second cache, coalesces concurrency, and supports HEA
   assert.equal(h.calls.length, 1);
   assert.equal(h.calls[0].url, 'https://opencode.ai/inference/go/v1/usage');
   assert.equal(h.calls[0].options.headers.Authorization, 'Bearer test-credential');
+  assert.equal(h.calls[0].options.headers['User-Agent'], 'DSH-Toolkit-Go-Quota/1.0');
+  assert.equal(h.calls[0].options.redirect, 'error');
   assert(h.calls[0].options.signal instanceof AbortSignal);
   assert.equal(a.status, 200);
   assert.equal(a.body, b.body);
@@ -124,6 +131,24 @@ test('quota uses the DSH credential service and recovers when a key is saved', a
   key = 'desktop-stored-key';
   assert.equal((await h.request()).status, 200);
   assert.equal(h.calls[0].options.headers.Authorization, 'Bearer desktop-stored-key');
+});
+
+test('private relay does not receive a bearer key or resolve the DSH credential', async t => {
+  const relay = 'http://172.18.0.1:9192/usage';
+  const h = harness(t, {
+    relay,
+    credentials: { resolve: () => assert.fail('relay mode must not access the key') },
+  });
+  assert.equal((await h.request()).status, 200);
+  assert.equal(h.calls[0].url, relay);
+  assert.equal(h.calls[0].options.headers.Authorization, undefined);
+  assert.equal(h.calls[0].options.redirect, 'error');
+});
+
+test('an invalid relay does not send an upstream request or fall back to sending the key', async t => {
+  const h = harness(t, { relay: 'https://example.com/usage' });
+  assert.equal((await h.request()).status, 503);
+  assert.equal(h.calls.length, 0);
 });
 
 test('provider failure is sanitized and retry is delayed by ten seconds', async t => {
